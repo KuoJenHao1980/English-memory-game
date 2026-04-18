@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>田禾棣翻牌記憶遊戲</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Georgia,serif;background:#f5f0e8;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:1rem;}
+#app{width:100%;max-width:680px;}
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* ── Setup ── */
+.game-title{font-size:26px;font-weight:700;color:#1a3a6b;text-align:center;margin:1.2rem 0 0.3rem;letter-spacing:0.04em;}
+.subtitle{font-size:14px;color:#888;text-align:center;margin-bottom:1.5rem;font-family:sans-serif;}
+.level-cards{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:1.4rem;}
+.level-card{background:#fff;border:1.5px solid #d0cabb;border-radius:12px;padding:1rem 2rem;cursor:pointer;text-align:center;transition:border-color 0.15s,background 0.15s;min-width:110px;}
+.level-card:hover{background:#f0ece0;border-color:#a09880;}
+.level-card.selected{border:2px solid #5DCAA5;background:#E1F5EE;}
+.level-card .lc-title{font-weight:700;font-size:16px;color:#1a3a6b;}
+.level-card .lc-sub{font-size:13px;color:#888;margin-top:3px;font-family:sans-serif;}
+.level-card.selected .lc-title,.level-card.selected .lc-sub{color:#085041;}
+.player-inputs{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem;}
+.player-input-group{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.player-input-group label{font-size:13px;font-weight:700;font-family:sans-serif;}
+.p1-label{color:#185FA5;}.p2-label{color:#993C1D;}
+.player-input-group input{border:1.5px solid #c8c0b0;border-radius:8px;padding:8px 14px;font-size:15px;font-family:Georgia,serif;background:#fff;color:#1a3a6b;text-align:center;width:148px;outline:none;}
+.player-input-group input:focus{border-color:#5DCAA5;}
+.btn-main{display:block;margin:0 auto;background:#1a3a6b;border:none;border-radius:10px;padding:12px 40px;font-size:17px;font-family:Georgia,serif;color:#fff;cursor:pointer;font-weight:700;letter-spacing:0.04em;transition:background 0.15s;}
+.btn-main:hover{background:#2a5090;}
+
+/* ── Scoreboard ── */
+.scoreboard{display:flex;gap:12px;justify-content:center;margin-bottom:0.75rem;flex-wrap:wrap;}
+.score-card{background:#fff;border-radius:10px;padding:0.7rem 1.4rem;text-align:center;min-width:145px;border:2px solid transparent;transition:border-color 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+.score-card.active-turn{border-color:#1D9E75;}
+.score-card .sc-name{font-size:13px;font-weight:700;color:#888;margin-bottom:2px;font-family:sans-serif;}
+.score-card .sc-score{font-size:30px;font-weight:700;color:#1a3a6b;}
+.score-card .sc-turn-label{font-size:11px;color:#0F6E56;margin-top:2px;height:14px;font-family:sans-serif;}
+.turn-info{text-align:center;margin-bottom:0.75rem;font-size:14px;color:#888;font-family:sans-serif;}
+.turn-name{font-weight:700;color:#1a3a6b;}
+
+/* ── Grid ── */
+.grid-wrap{display:flex;justify-content:center;margin-bottom:1.25rem;overflow-x:auto;padding:4px;}
+.card-grid{display:grid;}
+
+/* ── Card flip ── */
+.card-wrapper{perspective:700px;cursor:pointer;}
+.card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform 0.45s cubic-bezier(0.45,0.05,0.55,0.95);}
+.card-wrapper.flipped .card-inner{transform:rotateY(180deg);}
+.card-wrapper.matched{cursor:default;opacity:0.28;}
+.card-wrapper.matched .card-inner{transform:rotateY(180deg);}
+.card-face{position:absolute;inset:0;border-radius:12px;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;border:1.5px solid rgba(0,0,0,0.13);}
+.card-back-face{background:#1a3a6b;}
+.card-front-face{background:#fffef8;transform:rotateY(180deg);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.card-letter{font-family:Georgia,serif;font-weight:700;line-height:1;color:#1a3a6b;}
+.card-icon{line-height:1;display:block;}
+.card-word{font-family:Georgia,serif;font-weight:700;color:#c0392b;letter-spacing:0.02em;margin-top:3px;line-height:1.1;text-align:center;}
+
+/* ── Buttons ── */
+.btn-sm{display:block;margin:0 auto;background:#fff;border:1.5px solid #d0cabb;border-radius:8px;padding:8px 22px;font-size:14px;font-family:Georgia,serif;color:#1a3a6b;cursor:pointer;transition:background 0.15s;}
+.btn-sm:hover{background:#f0ece0;}
+
+/* ── Result ── */
+.result-box{background:#fff;border-radius:16px;padding:2rem;text-align:center;max-width:360px;margin:1rem auto 1.5rem;box-shadow:0 2px 12px rgba(0,0,0,0.1);}
+.result-box .winner-emoji{font-size:48px;margin-bottom:0.5rem;}
+.result-box .winner-text{font-size:22px;font-weight:700;color:#1a3a6b;margin-bottom:0.75rem;}
+.result-box .score-line{font-size:15px;color:#888;margin-bottom:0.25rem;font-family:sans-serif;}
+.btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- SETUP -->
+<div id="screen-setup" class="screen active">
+  <p class="game-title">田禾棣翻牌記憶遊戲</p>
+  <p class="subtitle">兩人輪流翻牌，找到最多配對的玩家獲勝</p>
+  <div class="level-cards">
+    <div class="level-card selected" onclick="selectLevel(this,3)">
+      <div class="lc-title">初級</div><div class="lc-sub">3 × 3</div>
+    </div>
+    <div class="level-card" onclick="selectLevel(this,4)">
+      <div class="lc-title">中級</div><div class="lc-sub">4 × 4</div>
+    </div>
+    <div class="level-card" onclick="selectLevel(this,5)">
+      <div class="lc-title">高級</div><div class="lc-sub">5 × 5</div>
+    </div>
+  </div>
+  <div class="player-inputs">
+    <div class="player-input-group">
+      <label class="p1-label">玩家 1</label>
+      <input id="p1-name" type="text" value="玩家一" maxlength="10"/>
+    </div>
+    <div class="player-input-group">
+      <label class="p2-label">玩家 2</label>
+      <input id="p2-name" type="text" value="玩家二" maxlength="10"/>
+    </div>
+  </div>
+  <button class="btn-main" onclick="startGame()">開始遊戲</button>
+</div>
+
+<!-- GAME -->
+<div id="screen-game" class="screen">
+  <p class="game-title" style="font-size:20px;margin:0.8rem 0 0.6rem;">田禾棣翻牌記憶遊戲</p>
+  <div class="scoreboard">
+    <div class="score-card" id="sc1">
+      <div class="sc-name" id="sc1-name">玩家一</div>
+      <div class="sc-score" id="sc1-score">0</div>
+      <div class="sc-turn-label" id="sc1-turn"></div>
+    </div>
+    <div class="score-card" id="sc2">
+      <div class="sc-name" id="sc2-name">玩家二</div>
+      <div class="sc-score" id="sc2-score">0</div>
+      <div class="sc-turn-label" id="sc2-turn"></div>
+    </div>
+  </div>
+  <div class="turn-info">輪到 <span class="turn-name" id="turn-name"></span> 翻牌</div>
+  <div class="grid-wrap"><div class="card-grid" id="card-grid"></div></div>
+  <button class="btn-sm" onclick="goSetup()">回到選單</button>
+</div>
+
+<!-- RESULT -->
+<div id="screen-result" class="screen">
+  <p class="game-title" style="font-size:20px;margin:1rem 0 1rem;">田禾棣翻牌記憶遊戲</p>
+  <div class="result-box">
+    <div class="winner-emoji" id="res-emoji"></div>
+    <div class="winner-text" id="res-winner"></div>
+    <div class="score-line" id="res-score1"></div>
+    <div class="score-line" id="res-score2"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-sm" onclick="startGame()">再玩一局</button>
+    <button class="btn-sm" onclick="goSetup()">更換設定</button>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+// ── SVG helper ──────────────────────────────────────────────────────────────
+const I=(p)=>(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">${p}</svg>`;
+
+// ── Animal head icons (new version) ─────────────────────────────────────────
+const ANIMAL_HEADS = {
+  A:{word:'Ant',     icon:I('<circle cx="40" cy="44" r="24" fill="#8B3A3A"/><ellipse cx="40" cy="36" rx="14" ry="10" fill="#A04A4A"/><circle cx="32" cy="38" r="4.5" fill="#1A0808"/><circle cx="48" cy="38" r="4.5" fill="#1A0808"/><circle cx="33" cy="37" r="1.6" fill="#fff"/><circle cx="49" cy="37" r="1.6" fill="#fff"/><ellipse cx="40" cy="48" rx="8" ry="5" fill="#6B2222"/><line x1="28" y1="22" x2="14" y2="10" stroke="#7B2D2D" stroke-width="2.5" stroke-linecap="round"/><line x1="34" y1="20" x2="26" y2="8" stroke="#7B2D2D" stroke-width="2.5" stroke-linecap="round"/><line x1="46" y1="20" x2="54" y2="8" stroke="#7B2D2D" stroke-width="2.5" stroke-linecap="round"/><line x1="52" y1="22" x2="66" y2="10" stroke="#7B2D2D" stroke-width="2.5" stroke-linecap="round"/>')},
+  B:{word:'Bear',    icon:I('<circle cx="20" cy="26" r="13" fill="#6B3D1E"/><circle cx="60" cy="26" r="13" fill="#6B3D1E"/><circle cx="20" cy="23" r="6" fill="#3A1A08"/><circle cx="60" cy="23" r="6" fill="#3A1A08"/><circle cx="40" cy="46" r="26" fill="#7B4D2E"/><ellipse cx="40" cy="56" rx="13" ry="9" fill="#C49060"/><circle cx="31" cy="40" r="5" fill="#1A0800"/><circle cx="49" cy="40" r="5" fill="#1A0800"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><ellipse cx="40" cy="52" rx="5.5" ry="3.5" fill="#5A2E10"/>')},
+  C:{word:'Cat',     icon:I('<polygon points="16,38 6,10 30,30" fill="#E8963A"/><polygon points="64,38 74,10 50,30" fill="#E8963A"/><circle cx="40" cy="46" r="26" fill="#E8963A"/><ellipse cx="40" cy="57" rx="12" ry="8" fill="#D07830"/><circle cx="31" cy="40" r="5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5" fill="#1A1A1A"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><ellipse cx="40" cy="52" rx="5.5" ry="3.5" fill="#C86848"/><path d="M34 56 Q37 60 40 56 Q43 60 46 56" stroke="#A04828" stroke-width="1.5" fill="none" stroke-linecap="round"/><line x1="22" y1="49" x2="8" y2="46" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/><line x1="22" y1="52" x2="8" y2="52" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/><line x1="22" y1="55" x2="8" y2="58" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/><line x1="58" y1="49" x2="72" y2="46" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/><line x1="58" y1="52" x2="72" y2="52" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/><line x1="58" y1="55" x2="72" y2="58" stroke="#D07830" stroke-width="1.8" stroke-linecap="round"/>')},
+  D:{word:'Dog',     icon:I('<ellipse cx="14" cy="42" rx="10" ry="18" fill="#B87040" transform="rotate(15 14 42)"/><ellipse cx="66" cy="42" rx="10" ry="18" fill="#B87040" transform="rotate(-15 66 42)"/><circle cx="40" cy="42" r="26" fill="#C88050"/><ellipse cx="40" cy="54" rx="13" ry="8" fill="#E8B080"/><circle cx="31" cy="36" r="5" fill="#1A1A1A"/><circle cx="49" cy="36" r="5" fill="#1A1A1A"/><circle cx="32" cy="35" r="1.8" fill="#fff"/><circle cx="50" cy="35" r="1.8" fill="#fff"/><ellipse cx="40" cy="50" rx="6.5" ry="4.5" fill="#A05030"/><path d="M31 58 Q40 65 49 58" stroke="#804020" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="40" cy="29" rx="6" ry="3.5" fill="#A06030"/>')},
+  E:{word:'Eagle',   icon:I('<circle cx="40" cy="40" r="28" fill="#5A3A10"/><ellipse cx="40" cy="26" rx="20" ry="10" fill="#FAFAF0"/><circle cx="30" cy="36" r="6.5" fill="#1A1A00"/><circle cx="50" cy="36" r="6.5" fill="#1A1A00"/><circle cx="31" cy="35" r="2.5" fill="#fff"/><circle cx="51" cy="35" r="2.5" fill="#fff"/><circle cx="31.8" cy="35.8" r="1.2" fill="#D0A000"/><circle cx="51.8" cy="35.8" r="1.2" fill="#D0A000"/><path d="M28 52 Q40 64 52 52 Q47 44 40 47 Q33 44 28 52Z" fill="#E0B020"/><path d="M34 52 Q40 57 46 52" fill="#C09010"/>')},
+  F:{word:'Fox',     icon:I('<polygon points="16,38 4,10 32,28" fill="#D05818"/><polygon points="64,38 76,10 48,28" fill="#D05818"/><ellipse cx="14" cy="18" rx="7" ry="5" fill="#F8EEE0"/><ellipse cx="66" cy="18" rx="7" ry="5" fill="#F8EEE0"/><circle cx="40" cy="46" r="26" fill="#E06820"/><ellipse cx="40" cy="57" rx="15" ry="9" fill="#F8EEE0"/><circle cx="31" cy="40" r="5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5" fill="#1A1A1A"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><ellipse cx="40" cy="52" rx="5.5" ry="3.5" fill="#C04010"/><path d="M32 59 Q40 65 48 59" stroke="#A03010" stroke-width="2" fill="none" stroke-linecap="round"/>')},
+  G:{word:'Goat',    icon:I('<ellipse cx="22" cy="22" rx="8" ry="16" fill="#D0C8B0" transform="rotate(-6 22 22)"/><ellipse cx="58" cy="22" rx="8" ry="16" fill="#D0C8B0" transform="rotate(6 58 22)"/><circle cx="40" cy="46" r="26" fill="#D8D0B8"/><ellipse cx="40" cy="57" rx="13" ry="8" fill="#EAE4D0"/><circle cx="31" cy="40" r="5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5" fill="#1A1A1A"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><path d="M36 22 Q40 14 44 22" stroke="#888" stroke-width="3.5" stroke-linecap="round" fill="none"/><ellipse cx="40" cy="53" rx="5.5" ry="3.5" fill="#B0A888"/><path d="M40 62 Q38 70 35 72" stroke="#A09878" stroke-width="2.5" stroke-linecap="round" fill="none"/>')},
+  H:{word:'Horse',   icon:I('<ellipse cx="22" cy="24" rx="9" ry="16" fill="#9A6830" transform="rotate(-5 22 24)"/><ellipse cx="58" cy="24" rx="9" ry="16" fill="#9A6830" transform="rotate(5 58 24)"/><path d="M20 22 Q22 10 28 8 Q30 14 26 20" fill="#7A4818"/><path d="M60 22 Q58 10 52 8 Q50 14 54 20" fill="#7A4818"/><circle cx="40" cy="46" r="26" fill="#A07840"/><ellipse cx="40" cy="57" rx="13" ry="8" fill="#C8A060"/><circle cx="31" cy="40" r="5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5" fill="#1A1A1A"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><ellipse cx="40" cy="53" rx="5.5" ry="3.5" fill="#805828"/>')},
+  J:{word:'Jaguar',  icon:I('<ellipse cx="18" cy="28" rx="10" ry="15" fill="#D8A828" transform="rotate(-8 18 28)"/><ellipse cx="62" cy="28" rx="10" ry="15" fill="#D8A828" transform="rotate(8 62 28)"/><circle cx="40" cy="46" r="26" fill="#E0B830"/><ellipse cx="40" cy="57" rx="12" ry="7.5" fill="#C89820"/><circle cx="31" cy="40" r="5" fill="#1A1A00"/><circle cx="49" cy="40" r="5" fill="#1A1A00"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><circle cx="22" cy="40" r="5" fill="#3A2800" opacity="0.5"/><circle cx="58" cy="40" r="5" fill="#3A2800" opacity="0.5"/><circle cx="30" cy="28" r="4" fill="#3A2800" opacity="0.4"/><circle cx="50" cy="28" r="4" fill="#3A2800" opacity="0.4"/><circle cx="31" cy="56" r="3.5" fill="#3A2800" opacity="0.38"/><circle cx="49" cy="56" r="3.5" fill="#3A2800" opacity="0.38"/><circle cx="40" cy="60" r="3.5" fill="#3A2800" opacity="0.35"/><ellipse cx="40" cy="52" rx="6.5" ry="4" fill="#C08010"/>')},
+  K:{word:'Koala',   icon:I('<circle cx="14" cy="38" r="17" fill="#909088"/><circle cx="66" cy="38" r="17" fill="#909088"/><circle cx="14" cy="35" r="10" fill="#B0A8A0"/><circle cx="66" cy="35" r="10" fill="#B0A8A0"/><ellipse cx="14" cy="30" r="6" fill="#787068"/><ellipse cx="66" cy="30" r="6" fill="#787068"/><circle cx="40" cy="46" r="25" fill="#B8B0A8"/><ellipse cx="40" cy="56" rx="12" ry="8" fill="#888078"/><circle cx="31" cy="40" r="5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5" fill="#1A1A1A"/><circle cx="32" cy="39" r="1.8" fill="#fff"/><circle cx="50" cy="39" r="1.8" fill="#fff"/><ellipse cx="40" cy="52" rx="6.5" ry="4" fill="#605850"/>')},
+  L:{word:'Lion',    icon:I('<circle cx="40" cy="40" r="36" fill="#D89030" opacity="0.35"/><circle cx="40" cy="40" r="29" fill="#D89030" opacity="0.55"/><circle cx="40" cy="40" r="22" fill="#F0C050"/><ellipse cx="40" cy="52" rx="13" ry="8.5" fill="#E8A840"/><circle cx="31" cy="34" r="5.5" fill="#1A1A1A"/><circle cx="49" cy="34" r="5.5" fill="#1A1A1A"/><circle cx="32.5" cy="33" r="2" fill="#fff"/><circle cx="50.5" cy="33" r="2" fill="#fff"/><ellipse cx="40" cy="49" rx="7.5" ry="5" fill="#D07040"/><path d="M30 56 Q40 63 50 56" stroke="#A05020" stroke-width="2.5" fill="none" stroke-linecap="round"/><line x1="28" y1="48" x2="12" y2="45" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/><line x1="28" y1="51" x2="12" y2="51" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/><line x1="28" y1="54" x2="12" y2="57" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="48" x2="68" y2="45" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="51" x2="68" y2="51" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="54" x2="68" y2="57" stroke="#C08030" stroke-width="1.8" stroke-linecap="round"/>')},
+  M:{word:'Monkey',  icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="40" r="12" fill="#C8905A"/><circle cx="64" cy="40" r="12" fill="#C8905A"/><circle cx="16" cy="40" r="7" fill="#E8A870"/><circle cx="64" cy="40" r="7" fill="#E8A870"/><circle cx="40" cy="44" r="24" fill="#C8905A"/><ellipse cx="40" cy="56" rx="14" ry="9" fill="#E8B080"/><circle cx="31" cy="38" r="5.5" fill="#1A1A1A"/><circle cx="49" cy="38" r="5.5" fill="#1A1A1A"/><circle cx="32.5" cy="36.5" r="2" fill="#fff"/><circle cx="50.5" cy="36.5" r="2" fill="#fff"/><circle cx="37" cy="55" r="2" fill="#A06030"/><circle cx="43" cy="55" r="2" fill="#A06030"/><path d="M32 60 Q40 66 48 60" stroke="#A06030" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M30 22 Q40 14 50 22" stroke="#8A5828" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M34 20 Q40 12 46 20" stroke="#A07040" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>`},
+  N:{word:'Newt',    icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="50" rx="26" ry="16" fill="#4A9A40"/><ellipse cx="40" cy="32" rx="20" ry="16" fill="#5AAA50"/><path d="M34 18 Q40 10 46 18" stroke="#3A7A30" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M36 16 Q40 8 44 16" stroke="#6AC060" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="29" cy="28" r="8" fill="#3A7A30"/><circle cx="51" cy="28" r="8" fill="#3A7A30"/><circle cx="29" cy="28" r="5.5" fill="#F0D820"/><circle cx="51" cy="28" r="5.5" fill="#F0D820"/><ellipse cx="29" cy="28" rx="2.5" ry="4" fill="#1A1A1A"/><ellipse cx="51" cy="28" rx="2.5" ry="4" fill="#1A1A1A"/><circle cx="28" cy="26" r="1.2" fill="#fff"/><circle cx="50" cy="26" r="1.2" fill="#fff"/><path d="M26 40 Q40 46 54 40" stroke="#3A7A30" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="28" cy="52" r="4" fill="#3A7A30" opacity="0.6"/><circle cx="40" cy="58" r="4" fill="#3A7A30" opacity="0.6"/><circle cx="52" cy="52" r="4" fill="#3A7A30" opacity="0.6"/></svg>`},
+  O:{word:'Owl',     icon:(s)=>`<svg width=\"${s}\" height=\"${s}\" viewBox=\"0 0 80 80\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx="40" cy="44" r="26" fill="#8B6020"/><polygon points="26,22 20,6 32,18" fill="#8B6020"/><polygon points="54,22 60,6 48,18" fill="#8B6020"/><ellipse cx="40" cy="44" rx="20" ry="22" fill="#D4A860"/><circle cx="30" cy="36" r="11" fill="#8B6020"/><circle cx="50" cy="36" r="11" fill="#8B6020"/><circle cx="30" cy="36" r="8" fill="#F5E020"/><circle cx="50" cy="36" r="8" fill="#F5E020"/><circle cx="30" cy="36" r="4.5" fill="#1A1A1A"/><circle cx="50" cy="36" r="4.5" fill="#1A1A1A"/><circle cx="31.5" cy="34" r="1.8" fill="#fff"/><circle cx="51.5" cy="34" r="1.8" fill="#fff"/><polygon points="40,43 34,52 46,52" fill="#E09020"/><path d="M18 54 Q24 48 30 54" stroke="#6A4810" stroke-width="1.5" fill="none"/><path d="M62 54 Q56 48 50 54" stroke="#6A4810" stroke-width="1.5" fill="none"/></svg>`},
+  P:{word:'Pig',     icon:I('<ellipse cx="16" cy="34" rx="12" ry="16" fill="#F0A0B8"/><ellipse cx="64" cy="34" rx="12" ry="16" fill="#F0A0B8"/><ellipse cx="16" cy="30" rx="7" ry="9" fill="#E080A0"/><ellipse cx="64" cy="30" rx="7" ry="9" fill="#E080A0"/><circle cx="40" cy="46" r="26" fill="#F8B8C8"/><ellipse cx="40" cy="57" rx="13" ry="8" fill="#F0A0B0"/><ellipse cx="40" cy="52" rx="10" ry="7" fill="#E080A0"/><circle cx="37" cy="52" r="2.8" fill="#B05070"/><circle cx="43" cy="52" r="2.8" fill="#B05070"/><circle cx="31" cy="38" r="5" fill="#1A1A1A"/><circle cx="49" cy="38" r="5" fill="#1A1A1A"/><circle cx="32" cy="37" r="1.8" fill="#fff"/><circle cx="50" cy="37" r="1.8" fill="#fff"/><path d="M30 62 Q40 70 50 62" stroke="#C07090" stroke-width="2" fill="none" stroke-linecap="round"/>')},
+  Q:{word:'Quail',   icon:(s)=>`<svg width=\"${s}\" height=\"${s}\" viewBox=\"0 0 80 80\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx="40" cy="46" r="24" fill="#A07848"/><ellipse cx="40" cy="38" rx="18" ry="16" fill="#C09860"/><path d="M40 24 Q38 14 36 8" stroke="#5A3A10" stroke-width="3" stroke-linecap="round" fill="none"/><ellipse cx="35" cy="6" rx="5" ry="7" fill="#5A3A10"/><circle cx="32" cy="36" r="5" fill="#1A1A1A"/><circle cx="48" cy="36" r="5" fill="#1A1A1A"/><circle cx="33.5" cy="34.5" r="1.8" fill="#fff"/><circle cx="49.5" cy="34.5" r="1.8" fill="#fff"/><path d="M36 44 Q40 50 44 44" fill="#8A6030" stroke="#6A4010" stroke-width="1"/><path d="M22 40 Q28 38 32 36" stroke="#5A3A10" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M58 40 Q52 38 48 36" stroke="#5A3A10" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="34" cy="52" r="2" fill="#7A5828" opacity="0.6"/><circle cx="40" cy="56" r="2" fill="#7A5828" opacity="0.6"/><circle cx="46" cy="52" r="2" fill="#7A5828" opacity="0.6"/></svg>`},
+  R:{word:'Rabbit',  icon:I('<ellipse cx="24" cy="20" rx="10" ry="20" fill="#E8E0D8"/><ellipse cx="24" cy="20" rx="6" ry="16" fill="#F8C8C8"/><ellipse cx="56" cy="20" rx="10" ry="20" fill="#E8E0D8"/><ellipse cx="56" cy="20" rx="6" ry="16" fill="#F8C8C8"/><circle cx="40" cy="48" r="24" fill="#EEE6DE"/><ellipse cx="40" cy="58" rx="12" ry="8" fill="#F0D0D0"/><circle cx="31" cy="42" r="5.5" fill="#1A1A1A"/><circle cx="49" cy="42" r="5.5" fill="#1A1A1A"/><circle cx="32.5" cy="41" r="2" fill="#fff"/><circle cx="50.5" cy="41" r="2" fill="#fff"/><ellipse cx="40" cy="54" rx="6.5" ry="4.5" fill="#F0A8A8"/><line x1="28" y1="54" x2="12" y2="51" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/><line x1="28" y1="57" x2="12" y2="57" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/><line x1="28" y1="60" x2="12" y2="63" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="54" x2="68" y2="51" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="57" x2="68" y2="57" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/><line x1="52" y1="60" x2="68" y2="63" stroke="#C8C0B8" stroke-width="1.8" stroke-linecap="round"/>')},
+  S:{word:'Swan',    icon:(s)=>`<svg width=\"${s}\" height=\"${s}\" viewBox=\"0 0 80 80\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx="40" cy="28" r="16" fill="#F5F5F0"/><path d="M40 44 Q36 54 34 64 Q38 70 44 68 Q46 58 44 46Z" fill="#F5F5F0"/><ellipse cx="24" cy="26" rx="10" ry="5" fill="#E08020" transform="rotate(-10 24 26)"/><ellipse cx="17" cy="24" rx="4" ry="3" fill="#C06010" transform="rotate(-10 17 24)"/><circle cx="34" cy="22" r="5" fill="#1A1A1A"/><circle cx="35.5" cy="20.5" r="1.8" fill="#fff"/><path d="M30 16 Q36 12 44 16" stroke="#E0E0D8" stroke-width="1.5" fill="none"/><ellipse cx="50" cy="52" rx="18" ry="10" fill="#EDEDEA" transform="rotate(-10 50 52)"/><path d="M36 56 Q46 50 62 56" stroke="#D8D8D0" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M36 60 Q46 54 60 60" stroke="#D8D8D0" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`},
+  T:{word:'Tiger',   icon:I('<ellipse cx="18" cy="28" rx="10" ry="15" fill="#E09030" transform="rotate(-5 18 28)"/><ellipse cx="62" cy="28" rx="10" ry="15" fill="#E09030" transform="rotate(5 62 28)"/><circle cx="40" cy="46" r="26" fill="#F0A030"/><ellipse cx="40" cy="57" rx="13" ry="8" fill="#F8D898"/><circle cx="31" cy="40" r="5.5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5.5" fill="#1A1A1A"/><circle cx="32.5" cy="39" r="2" fill="#fff"/><circle cx="50.5" cy="39" r="2" fill="#fff"/><path d="M24 28 Q26 20 30 24" stroke="#2A1800" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M38 24 Q40 16 42 24" stroke="#2A1800" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M56 28 Q54 20 50 24" stroke="#2A1800" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M22 48 Q24 56 20 62" stroke="#2A1800" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M58 48 Q56 56 60 62" stroke="#2A1800" stroke-width="2.5" stroke-linecap="round" fill="none"/><ellipse cx="40" cy="53" rx="7.5" ry="5" fill="#D07020"/><path d="M30 61 Q40 69 50 61" stroke="#A04010" stroke-width="2" fill="none" stroke-linecap="round"/>')},
+  U:{word:'Unicorn', icon:I('<ellipse cx="22" cy="26" rx="9" ry="16" fill="#E8D0F8" transform="rotate(-5 22 26)"/><ellipse cx="58" cy="26" rx="9" ry="16" fill="#E8D0F8" transform="rotate(5 58 26)"/><circle cx="40" cy="46" r="26" fill="#EED8F8"/><line x1="40" y1="24" x2="46" y2="2" stroke="#F0D030" stroke-width="5" stroke-linecap="round"/><line x1="40" y1="24" x2="44" y2="4" stroke="#F0A0D0" stroke-width="2.5" stroke-linecap="round" opacity="0.9"/><ellipse cx="46" cy="2" rx="4" ry="4" fill="#F8E040"/><circle cx="31" cy="42" r="5.5" fill="#7030A0"/><circle cx="49" cy="42" r="5.5" fill="#7030A0"/><circle cx="32.5" cy="41" r="2" fill="#fff"/><circle cx="50.5" cy="41" r="2" fill="#fff"/><ellipse cx="40" cy="56" rx="13" ry="8" fill="#D8A8F0"/><path d="M28 58 Q33 66 38 61 Q40 66 42 61 Q47 66 52 58" stroke="#B880D8" stroke-width="2" fill="none" stroke-linecap="round"/>')},
+  V:{word:'Viper',   icon:(s)=>`<svg width=\"${s}\" height=\"${s}\" viewBox=\"0 0 80 80\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><ellipse cx="42" cy="58" rx="22" ry="12" fill="#4A8A30"/><ellipse cx="42" cy="58" rx="14" ry="7" fill="#3A7A20" opacity="0.5"/><path d="M38 48 Q34 36 36 26" stroke="#4A8A30" stroke-width="10" stroke-linecap="round" fill="none"/><path d="M38 48 Q34 36 36 26" stroke="#6AAA50" stroke-width="5" stroke-linecap="round" fill="none" opacity="0.5"/><ellipse cx="36" cy="20" rx="14" ry="10" fill="#5A9A40" transform="rotate(-15 36 20)"/><path d="M28 18 Q36 14 44 20" stroke="#3A7A20" stroke-width="1" fill="none" opacity="0.6"/><circle cx="29" cy="22" r="2" fill="#2A5A18" opacity="0.7"/><circle cx="34" cy="16" r="4.5" fill="#C0A020"/><ellipse cx="34" cy="16" rx="1.5" ry="3.5" fill="#1A1A1A"/><circle cx="33" cy="14.5" r="1" fill="#fff"/><path d="M46 22 L54 20 M54 20 L58 17 M54 20 L58 23" stroke="#CC2020" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M30 50 Q38 46 46 50 Q38 54 30 50Z" fill="#3A7A20" opacity="0.4"/><path d="M34 58 Q42 54 50 58 Q42 62 34 58Z" fill="#3A7A20" opacity="0.4"/></svg>`},
+  W:{word:'Wolf',    icon:I('<polygon points="18,38 4,10 34,30" fill="#707080"/><polygon points="62,38 76,10 46,30" fill="#707080"/><ellipse cx="16" cy="20" rx="8" ry="5" fill="#E8E0E0"/><ellipse cx="64" cy="20" rx="8" ry="5" fill="#E8E0E0"/><circle cx="40" cy="46" r="26" fill="#808090"/><ellipse cx="40" cy="57" rx="15" ry="9" fill="#C8C0C0"/><ellipse cx="31" cy="42" r="6" fill="#C8C000"/><ellipse cx="49" cy="42" r="6" fill="#C8C000"/><ellipse cx="31" cy="42" rx="2.8" ry="4.5" fill="#1A1A1A"/><ellipse cx="49" cy="42" rx="2.8" ry="4.5" fill="#1A1A1A"/><circle cx="32" cy="40" r="1.2" fill="#fff"/><circle cx="50" cy="40" r="1.2" fill="#fff"/><ellipse cx="40" cy="53" rx="7.5" ry="5" fill="#909098"/><path d="M30 62 Q40 70 50 62" stroke="#686870" stroke-width="2.5" fill="none" stroke-linecap="round"/>')},
+  X:{word:'X-ray fish',icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="36" cy="40" rx="26" ry="16" fill="rgba(160,210,255,0.35)" stroke="#3080C0" stroke-width="1.5"/><polygon points="62,40 76,26 76,54" fill="#2870A0" opacity="0.85"/><line x1="14" y1="40" x2="62" y2="40" stroke="#1050A0" stroke-width="1.2" opacity="0.5"/><line x1="28" y1="40" x2="24" y2="30" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="34" y1="40" x2="30" y2="28" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="40" y1="40" x2="36" y2="27" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="46" y1="40" x2="43" y2="28" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="52" y1="40" x2="50" y2="30" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="28" y1="40" x2="24" y2="50" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="34" y1="40" x2="30" y2="52" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="40" y1="40" x2="36" y2="53" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="46" y1="40" x2="43" y2="52" stroke="#1050A0" stroke-width="1" opacity="0.45"/><line x1="52" y1="40" x2="50" y2="50" stroke="#1050A0" stroke-width="1" opacity="0.45"/><path d="M30 24 Q40 14 52 24" stroke="#2870A0" stroke-width="1.5" fill="rgba(160,210,255,0.2)"/><path d="M30 42 Q24 52 20 56 Q28 50 34 46" fill="rgba(100,180,240,0.4)" stroke="#2870A0" stroke-width="1"/><circle cx="16" cy="38" r="5" fill="rgba(220,240,255,0.8)" stroke="#3080C0" stroke-width="1.2"/><circle cx="16" cy="38" r="2.5" fill="#1A1A2A"/><circle cx="17" cy="37" r="1" fill="#fff"/><path d="M8 40 Q10 38 14 39" stroke="#2060A0" stroke-width="1.2" stroke-linecap="round" fill="none"/><ellipse cx="36" cy="36" rx="14" ry="6" fill="rgba(255,255,255,0.18)"/></svg>`},
+  Y:{word:'Yak',     icon:(s)=>`<svg width=\"${s}\" height=\"${s}\" viewBox=\"0 0 80 80\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx="40" cy="44" r="26" fill="#2A1A0A"/><path d="M18 36 Q22 24 30 20 Q40 16 50 20 Q58 24 62 36" stroke="#3A2A10" stroke-width="8" stroke-linecap="round" fill="none"/><path d="M20 34 Q24 22 32 18 Q40 14 48 18 Q56 22 60 34" stroke="#1A0A00" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M24 28 Q14 18 12 8" stroke="#888" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M56 28 Q66 18 68 8" stroke="#888" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M12 8 Q10 4 16 6" stroke="#888" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M68 8 Q70 4 64 6" stroke="#888" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="30" cy="42" r="5.5" fill="#1A0A00"/><circle cx="50" cy="42" r="5.5" fill="#1A0A00"/><circle cx="31.5" cy="40.5" r="2" fill="#6A4A20"/><circle cx="51.5" cy="40.5" r="2" fill="#6A4A20"/><circle cx="32" cy="40" r="1" fill="#fff"/><circle cx="52" cy="40" r="1" fill="#fff"/><ellipse cx="40" cy="56" rx="14" ry="10" fill="#3A2A10"/><ellipse cx="40" cy="58" rx="8" ry="5" fill="#2A1A08"/><ellipse cx="36" cy="57" rx="2.5" ry="2" fill="#1A0A00"/><ellipse cx="44" cy="57" rx="2.5" ry="2" fill="#1A0A00"/></svg>`},
+  Z:{word:'Zebra',   icon:I('<ellipse cx="22" cy="24" rx="9" ry="17" fill="#F0F0F0" transform="rotate(-4 22 24)"/><ellipse cx="58" cy="24" rx="9" ry="17" fill="#F0F0F0" transform="rotate(4 58 24)"/><circle cx="40" cy="46" r="26" fill="#F4F4F4"/><ellipse cx="40" cy="57" rx="13" ry="8" fill="#E8E8E8"/><path d="M28 30 Q30 22 32 30" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M37 26 Q40 18 43 26" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M48 30 Q50 22 52 30" stroke="#1A1A1A" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M26 42 Q28 35 30 42" stroke="#1A1A1A" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M50 42 Q52 35 54 42" stroke="#1A1A1A" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M26 54 Q28 48 30 54" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M50 54 Q52 48 54 54" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M36 60 Q40 54 44 60" stroke="#1A1A1A" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="31" cy="40" r="5.5" fill="#1A1A1A"/><circle cx="49" cy="40" r="5.5" fill="#1A1A1A"/><circle cx="32.5" cy="38.5" r="2" fill="#fff"/><circle cx="50.5" cy="38.5" r="2" fill="#fff"/>')},
+};
+
+// ── Food & Life icons (unchanged) ────────────────────────────────────────────
+const I2=(p)=>(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">${p}</svg>`;
+const OTHER_ICONS = {
+  // Food
+  A_food:{word:'Apple',    icon:I2(`<ellipse cx="20" cy="24" rx="13" ry="12" fill="#e84040"/><ellipse cx="14" cy="24" rx="5" ry="9" fill="#f26060" opacity="0.4"/><path d="M20 13 Q22 6 28 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/><ellipse cx="26" cy="8" rx="5" ry="3" fill="#5cb33a" transform="rotate(-20 26 8)"/>`)},
+  B_food:{word:'Banana',   icon:I2(`<path d="M10 30 Q14 10 32 10" stroke="#f5c518" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M10 30 Q14 12 32 10" stroke="#ffe566" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/><circle cx="32" cy="10" r="3" fill="#c8a000"/><circle cx="10" cy="30" r="3" fill="#c8a000"/>`)},
+  C_food:{word:'Cake',     icon:I2(`<rect x="8" y="22" width="24" height="14" rx="3" fill="#F0C0A0"/><ellipse cx="20" cy="22" rx="12" ry="5" fill="#F8D8B8"/><rect x="12" y="14" width="16" height="10" rx="2" fill="#F090A0"/><ellipse cx="20" cy="14" rx="8" ry="3.5" fill="#F8B0C0"/><rect x="19" y="6" width="2.5" height="9" rx="1" fill="#E8D080"/><ellipse cx="20.5" cy="6" rx="2" ry="2.5" fill="#FF8050"/>`)},
+  D_food:{word:'Donut',    icon:I2(`<circle cx="20" cy="20" r="14" fill="#E8A060"/><circle cx="20" cy="20" r="6" fill="#fffef8"/><ellipse cx="14" cy="15" rx="4" ry="2" fill="#F050A0" opacity="0.7" transform="rotate(-20 14 15)"/><circle cx="24" cy="12" r="2" fill="#F04040" opacity="0.8"/><circle cx="26" cy="18" r="1.5" fill="#50C050" opacity="0.8"/><circle cx="14" cy="24" r="2" fill="#5080F0" opacity="0.8"/>`)},
+  E_food:{word:'Egg',      icon:I2(`<ellipse cx="20" cy="22" rx="11" ry="14" fill="#FFFAE0" stroke="#E8D090" stroke-width="1"/><ellipse cx="20" cy="24" rx="6" ry="6" fill="#F5B040"/>`)},
+  F_food:{word:'Fig',      icon:I2(`<ellipse cx="20" cy="24" rx="11" ry="13" fill="#8050A0"/><ellipse cx="15" cy="22" rx="4" ry="8" fill="#A070C0" opacity="0.4"/><path d="M20 11 Q22 5 26 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/><ellipse cx="24" cy="7" rx="4" ry="2.5" fill="#5cb33a" transform="rotate(-15 24 7)"/>`)},
+  G_food:{word:'Grapes',   icon:I2(`<circle cx="14" cy="18" r="5" fill="#8050D0"/><circle cx="26" cy="18" r="5" fill="#8050D0"/><circle cx="20" cy="13" r="5" fill="#8050D0"/><circle cx="20" cy="25" r="5" fill="#9060E0"/><circle cx="14" cy="25" r="5" fill="#9060E0"/><circle cx="26" cy="25" r="5" fill="#9060E0"/><path d="M20 8 Q22 3 25 4" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  H_food:{word:'Honey',    icon:I2(`<path d="M12 12 L14 8 L26 8 L28 12 L30 32 Q20 36 10 32Z" fill="#F5C030"/><path d="M14 8 L26 8" stroke="#D4A020" stroke-width="1.5"/><ellipse cx="20" cy="20" rx="7" ry="4" fill="#F0A820" opacity="0.5"/><path d="M16 16 Q20 20 24 16" stroke="#D4A020" stroke-width="1.5" fill="none"/>`)},
+  I_food:{word:'Ice cream',icon:I2(`<polygon points="20,38 12,20 28,20" fill="#f0c060"/><ellipse cx="20" cy="18" rx="10" ry="9" fill="#f8a0b0"/><circle cx="14" cy="14" r="1.5" fill="#ff3366"/><circle cx="24" cy="12" r="1.5" fill="#ff3366"/><circle cx="22" cy="20" r="1.5" fill="#ff3366"/>`)},
+  J_food:{word:'Jam',      icon:I2(`<rect x="10" y="14" width="20" height="22" rx="4" fill="#E05080"/><ellipse cx="20" cy="14" rx="10" ry="4" fill="#F08090"/><rect x="14" y="8" width="12" height="7" rx="2" fill="#F5F0E8"/><circle cx="16" cy="22" r="2" fill="#C03060" opacity="0.7"/><circle cx="24" cy="26" r="2" fill="#C03060" opacity="0.7"/><circle cx="20" cy="20" r="2" fill="#C03060" opacity="0.7"/>`)},
+  K_food:{word:'Kiwi',     icon:I2(`<circle cx="20" cy="21" r="14" fill="#5A8A2A"/><circle cx="20" cy="21" r="12" fill="#C8E050"/><circle cx="20" cy="21" r="5" fill="#E8F0A0"/><line x1="20" y1="9" x2="20" y2="33" stroke="#8A6020" stroke-width="1"/><line x1="8" y1="21" x2="32" y2="21" stroke="#8A6020" stroke-width="1"/><line x1="12" y1="13" x2="28" y2="29" stroke="#8A6020" stroke-width="1"/><line x1="28" y1="13" x2="12" y2="29" stroke="#8A6020" stroke-width="1"/>`)},
+  L_food:{word:'Lemon',    icon:I2(`<ellipse cx="20" cy="21" rx="14" ry="11" fill="#F5E030"/><ellipse cx="12" cy="18" rx="5" ry="8" fill="#FFF070" opacity="0.4"/><ellipse cx="5" cy="21" rx="3" ry="4" fill="#F5E030"/><ellipse cx="35" cy="21" rx="3" ry="4" fill="#F5E030"/>`)},
+  M_food:{word:'Mango',    icon:I2(`<ellipse cx="20" cy="24" rx="12" ry="13" fill="#F5A020"/><ellipse cx="14" cy="22" rx="5" ry="10" fill="#FFCA50" opacity="0.4"/><path d="M20 11 Q22 5 25 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  N_food:{word:'Noodle',   icon:I2(`<path d="M6 14 Q14 8 22 14 Q30 20 38 14" stroke="#F5C060" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M6 20 Q14 14 22 20 Q30 26 38 20" stroke="#F5C060" stroke-width="3.5" stroke-linecap="round" fill="none"/><path d="M6 26 Q14 20 22 26 Q30 32 38 26" stroke="#F5C060" stroke-width="3.5" stroke-linecap="round" fill="none"/>`)},
+  O_food:{word:'Orange',   icon:I2(`<circle cx="20" cy="22" r="14" fill="#f5801a"/><ellipse cx="14" cy="18" rx="5" ry="9" fill="#f7a050" opacity="0.35"/><path d="M20 9 Q22 4 26 5" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  P_food:{word:'Peach',    icon:I2(`<ellipse cx="20" cy="24" rx="13" ry="12" fill="#F5A080"/><ellipse cx="14" cy="22" rx="5" ry="9" fill="#FFD0B0" opacity="0.5"/><path d="M20 12 Q22 5 27 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  Q_food:{word:'Quince',   icon:I2(`<ellipse cx="20" cy="24" rx="12" ry="12" fill="#F5D040"/><ellipse cx="14" cy="22" rx="5" ry="9" fill="#FFEC80" opacity="0.4"/><path d="M20 12 Q21 5 26 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  R_food:{word:'Rice',     icon:I2(`<ellipse cx="20" cy="28" rx="14" ry="8" fill="#F0ECE0" stroke="#D0C8B0" stroke-width="1"/><ellipse cx="14" cy="22" rx="4" ry="3" fill="#F8F4EC"/><ellipse cx="22" cy="20" rx="4" ry="3" fill="#F8F4EC"/><ellipse cx="28" cy="24" rx="3.5" ry="2.5" fill="#F8F4EC"/><ellipse cx="16" cy="26" rx="3" ry="2" fill="#F8F4EC"/>`)},
+  S_food:{word:'Strawberry',icon:I2(`<ellipse cx="20" cy="26" rx="12" ry="11" fill="#E03030"/><ellipse cx="15" cy="24" rx="5" ry="8" fill="#F05050" opacity="0.4"/><path d="M20 15 Q18 8 14 10 Q18 8 20 4 Q22 8 26 10 Q22 8 20 15Z" fill="#5cb33a"/><circle cx="16" cy="22" r="1" fill="#FFDD80"/><circle cx="22" cy="20" r="1" fill="#FFDD80"/><circle cx="24" cy="27" r="1" fill="#FFDD80"/>`)},
+  T_food:{word:'Tomato',   icon:I2(`<circle cx="20" cy="24" r="13" fill="#E03030"/><ellipse cx="14" cy="22" rx="5" ry="9" fill="#F05050" opacity="0.35"/><path d="M16 12 Q17 6 20 8 Q20 5 23 7 Q22 4 25 8 Q22 6 20 10" fill="#5cb33a"/>`)},
+  U_food:{word:'Unicycle', icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="58" r="18" fill="none" stroke="#333" stroke-width="3.5"/><circle cx="40" cy="58" r="3.5" fill="#555"/><line x1="40" y1="40" x2="40" y2="76" stroke="#555" stroke-width="1.5"/><line x1="22" y1="58" x2="58" y2="58" stroke="#555" stroke-width="1.5"/><line x1="27" y1="45" x2="53" y2="71" stroke="#555" stroke-width="1.5"/><line x1="53" y1="45" x2="27" y2="71" stroke="#555" stroke-width="1.5"/><line x1="40" y1="40" x2="40" y2="22" stroke="#E04040" stroke-width="4" stroke-linecap="round"/><rect x="28" y="18" width="24" height="6" rx="3" fill="#222"/><line x1="40" y1="58" x2="52" y2="52" stroke="#333" stroke-width="3" stroke-linecap="round"/><rect x="50" y="48" width="10" height="4" rx="2" fill="#555"/><line x1="40" y1="58" x2="28" y2="64" stroke="#333" stroke-width="3" stroke-linecap="round"/><rect x="20" y="62" width="10" height="4" rx="2" fill="#555"/></svg>`},
+  V_food:{word:'Vanilla',  icon:I2(`<rect x="14" y="18" width="12" height="16" rx="4" fill="#F5E8C0"/><ellipse cx="20" cy="18" rx="6" ry="3" fill="#E8D090"/><path d="M18 6 Q20 2 22 6" stroke="#8A6020" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="20" cy="6" r="2.5" fill="#F5C040"/>`)},
+  W_food:{word:'Waffle',   icon:I2(`<rect x="7" y="7" width="26" height="26" rx="3" fill="#F5C060"/><line x1="7" y1="16" x2="33" y2="16" stroke="#D4A030" stroke-width="1.5"/><line x1="7" y1="24" x2="33" y2="24" stroke="#D4A030" stroke-width="1.5"/><line x1="16" y1="7" x2="16" y2="33" stroke="#D4A030" stroke-width="1.5"/><line x1="24" y1="7" x2="24" y2="33" stroke="#D4A030" stroke-width="1.5"/>`)},
+  X_food:{word:'Ximenia',  icon:I2(`<ellipse cx="20" cy="24" rx="11" ry="12" fill="#F0A840"/><ellipse cx="14" cy="22" rx="4.5" ry="9" fill="#FFD080" opacity="0.4"/><path d="M20 12 Q22 5 27 7" stroke="#4a8a2a" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  Y_food:{word:'Yogurt',   icon:I2(`<ellipse cx="20" cy="28" rx="13" ry="9" fill="#F5F0F8"/><ellipse cx="20" cy="19" rx="13" ry="5" fill="#E8E0F0"/><ellipse cx="20" cy="19" rx="13" ry="5" fill="none" stroke="#C8C0D8" stroke-width="1"/><ellipse cx="16" cy="22" rx="4" ry="2.5" fill="#E080A0" opacity="0.7"/><ellipse cx="24" cy="25" rx="3" ry="2" fill="#80D080" opacity="0.7"/>`)},
+  Z_food:{word:'Zucchini', icon:I2(`<ellipse cx="20" cy="22" rx="6" ry="14" fill="#50A030" transform="rotate(-20 20 22)"/><ellipse cx="20" cy="22" rx="3" ry="11" fill="#70C050" opacity="0.5" transform="rotate(-20 20 22)"/><ellipse cx="10" cy="14" rx="4" ry="3" fill="#5cb33a" transform="rotate(-20 10 14)"/>`)},
+  // Life
+  A_life:{word:'Airplane', icon:I2(`<path d="M4 22 L20 14 L36 22 L20 20Z" fill="#4080C0"/><path d="M16 22 L20 36 L24 22" fill="#3060A0"/><path d="M8 22 L12 26 L12 22Z" fill="#3060A0"/><path d="M32 22 L28 26 L28 22Z" fill="#3060A0"/>`)},
+  B_life:{word:'Ball',     icon:I2(`<circle cx="20" cy="20" r="14" fill="#E04040"/><path d="M6 20 Q20 6 34 20" stroke="#fff" stroke-width="1.5" fill="none"/><path d="M6 20 Q20 34 34 20" stroke="#fff" stroke-width="1.5" fill="none"/><path d="M20 6 Q20 20 20 34" stroke="#fff" stroke-width="1.5" fill="none"/>`)},
+  C_life:{word:'Car',      icon:I2(`<rect x="4" y="22" width="32" height="12" rx="3" fill="#E04040"/><path d="M8 22 L12 12 L28 12 L32 22Z" fill="#C03030"/><rect x="12" y="14" width="7" height="7" rx="1" fill="#A0D0F0" opacity="0.9"/><rect x="21" y="14" width="7" height="7" rx="1" fill="#A0D0F0" opacity="0.9"/><circle cx="10" cy="34" r="4" fill="#333"/><circle cx="30" cy="34" r="4" fill="#333"/><circle cx="10" cy="34" r="2" fill="#888"/><circle cx="30" cy="34" r="2" fill="#888"/>`)},
+  D_life:{word:'Drum',     icon:I2(`<ellipse cx="20" cy="14" rx="14" ry="5" fill="#E08040"/><rect x="6" y="14" width="28" height="16" fill="#F09050"/><ellipse cx="20" cy="30" rx="14" ry="5" fill="#E08040"/><line x1="14" y1="6" x2="18" y2="16" stroke="#8A5020" stroke-width="2.5" stroke-linecap="round"/><line x1="26" y1="6" x2="22" y2="16" stroke="#8A5020" stroke-width="2.5" stroke-linecap="round"/>`)},
+  E_life:{word:'Eraser',   icon:I2(`<rect x="6" y="14" width="28" height="16" rx="4" fill="#F080A0"/><rect x="6" y="14" width="14" height="16" rx="4" fill="#C05070"/>`)},
+  F_life:{word:'Flag',     icon:I2(`<line x1="10" y1="6" x2="10" y2="36" stroke="#8A6020" stroke-width="2.5" stroke-linecap="round"/><polygon points="10,6 34,14 10,22" fill="#E04040"/>`)},
+  G_life:{word:'Guitar',   icon:I2(`<ellipse cx="20" cy="28" rx="9" ry="10" fill="#C07830"/><ellipse cx="20" cy="13" rx="6" ry="7" fill="#C07830"/><rect x="19" y="6" width="2.5" height="22" fill="#A06020"/><circle cx="20" cy="28" r="3" fill="#8A5010"/><line x1="16" y1="6" x2="24" y2="6" stroke="#888" stroke-width="1.5"/>`)},
+  H_life:{word:'Hat',      icon:I2(`<ellipse cx="20" cy="28" rx="16" ry="5" fill="#2A2A2A"/><rect x="11" y="10" width="18" height="18" rx="4" fill="#1A1A1A"/><rect x="14" y="22" width="12" height="3" fill="#E0A030"/>`)},
+  I_life:{word:'Ink',      icon:I2(`<path d="M16 6 L24 6 L26 20 Q20 26 14 20Z" fill="#2040C0"/><ellipse cx="20" cy="32" rx="4" ry="6" fill="#3050D0"/><circle cx="20" cy="38" r="3" fill="#1030A0"/>`)},
+  J_life:{word:'Jar',      icon:I2(`<rect x="12" y="16" width="16" height="20" rx="4" fill="#A0D0F0" opacity="0.8" stroke="#6090C0" stroke-width="1"/><rect x="11" y="12" width="18" height="5" rx="2" fill="#8090A0"/>`)},
+  K_life:{word:'Key',      icon:I2(`<circle cx="14" cy="18" r="8" fill="none" stroke="#C0A030" stroke-width="3.5"/><line x1="22" y1="18" x2="36" y2="18" stroke="#C0A030" stroke-width="3.5" stroke-linecap="round"/><line x1="30" y1="18" x2="30" y2="24" stroke="#C0A030" stroke-width="3" stroke-linecap="round"/><line x1="34" y1="18" x2="34" y2="22" stroke="#C0A030" stroke-width="3" stroke-linecap="round"/>`)},
+  L_life:{word:'Lamp',     icon:I2(`<polygon points="12,6 28,6 26,22 14,22" fill="#F5D060"/><ellipse cx="20" cy="22" rx="7" ry="2.5" fill="#D4A030"/><rect x="19" y="24" width="2.5" height="10" fill="#8A8A8A"/><ellipse cx="20" cy="34" rx="7" ry="2" fill="#888"/>`)},
+  M_life:{word:'Map',      icon:I2(`<rect x="6" y="8" width="28" height="24" rx="2" fill="#F5E8C0" stroke="#C8A850" stroke-width="1"/><path d="M10 12 Q16 20 22 14 Q28 8 32 20" stroke="#4080C0" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="18" cy="18" r="2.5" fill="#E04040"/>`)},
+  N_life:{word:'Nail',     icon:I2(`<rect x="18" y="6" width="4" height="24" rx="2" fill="#A0A0A8"/><ellipse cx="20" cy="6" rx="5" ry="3" fill="#888890"/><polygon points="18,30 22,30 20,38" fill="#A0A0A8"/>`)},
+  O_life:{word:'Umbrella', icon:I2(`<path d="M6 20 A14 14 0 0 1 34 20Z" fill="#5050D0"/><line x1="20" y1="20" x2="20" y2="34" stroke="#3030B0" stroke-width="2"/><path d="M20 34 Q24 34 24 38 Q24 40 22 40" stroke="#3030B0" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  P_life:{word:'Pencil',   icon:I2(`<polygon points="20,4 26,8 26,34 14,34 14,8" fill="#F5D040"/><polygon points="14,34 26,34 20,38" fill="#F0A080"/><rect x="14" y="8" width="12" height="5" fill="#F0A060"/>`)},
+  Q_life:{word:'Quilt',    icon:I2(`<rect x="6" y="6" width="28" height="28" rx="2" fill="#E0D0F0"/><rect x="6" y="6" width="14" height="14" rx="1" fill="#F0A0C0"/><rect x="20" y="6" width="14" height="14" rx="1" fill="#A0C0F0"/><rect x="6" y="20" width="14" height="14" rx="1" fill="#A0F0A0"/><rect x="20" y="20" width="14" height="14" rx="1" fill="#F0E080"/>`)},
+  R_life:{word:'Ruler',    icon:I2(`<rect x="4" y="14" width="32" height="12" rx="2" fill="#F5D060"/><line x1="10" y1="14" x2="10" y2="20" stroke="#C0A020" stroke-width="1.5"/><line x1="16" y1="14" x2="16" y2="22" stroke="#C0A020" stroke-width="1.5"/><line x1="22" y1="14" x2="22" y2="20" stroke="#C0A020" stroke-width="1.5"/><line x1="28" y1="14" x2="28" y2="22" stroke="#C0A020" stroke-width="1.5"/>`)},
+  S_life:{word:'Sun',      icon:I2(`<circle cx="20" cy="20" r="8" fill="#F5C020"/><line x1="20" y1="4" x2="20" y2="10" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="20" y1="30" x2="20" y2="36" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="4" y1="20" x2="10" y2="20" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="30" y1="20" x2="36" y2="20" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="8" y1="8" x2="13" y2="13" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="27" y1="27" x2="32" y2="32" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="32" y1="8" x2="27" y2="13" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/><line x1="8" y1="32" x2="13" y2="27" stroke="#F5C020" stroke-width="2.5" stroke-linecap="round"/>`)},
+  T_life:{word:'Train',    icon:I2(`<rect x="6" y="10" width="28" height="20" rx="4" fill="#4060C0"/><rect x="10" y="14" width="8" height="8" rx="1" fill="#A0D0F0"/><rect x="22" y="14" width="8" height="8" rx="1" fill="#A0D0F0"/><circle cx="12" cy="30" r="4" fill="#333"/><circle cx="28" cy="30" r="4" fill="#333"/><circle cx="12" cy="30" r="2" fill="#888"/><circle cx="28" cy="30" r="2" fill="#888"/>`)},
+  U_life:{word:'Umbrella', icon:I2(`<path d="M6 20 A14 14 0 0 1 34 20Z" fill="#e04040"/><line x1="20" y1="20" x2="20" y2="34" stroke="#c02020" stroke-width="2"/><path d="M20 34 Q24 34 24 38 Q24 40 22 40" stroke="#c02020" stroke-width="2" stroke-linecap="round" fill="none"/>`)},
+  V_life:{word:'Violin',   icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="40" cy="24" rx="13" ry="15" fill="#A05820"/><ellipse cx="40" cy="56" rx="16" ry="18" fill="#A05820"/><ellipse cx="28" cy="40" rx="6" ry="9" fill="#fffef8"/><ellipse cx="52" cy="40" rx="6" ry="9" fill="#fffef8"/><path d="M33 32 Q31 38 33 44" stroke="#6A3510" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M47 32 Q49 38 47 44" stroke="#6A3510" stroke-width="2" stroke-linecap="round" fill="none"/><rect x="37" y="4" width="6" height="22" rx="3" fill="#2A1A08"/><ellipse cx="40" cy="4" rx="5" ry="4" fill="#3A2010"/><path d="M38 2 Q36 0 40 2" stroke="#6A3510" stroke-width="1.5" fill="none" stroke-linecap="round"/><rect x="35" y="43" width="10" height="3" rx="1" fill="#8A6030"/><line x1="38" y1="4" x2="37" y2="74" stroke="#D0C090" stroke-width="0.8" opacity="0.8"/><line x1="39.5" y1="4" x2="39" y2="74" stroke="#D0C090" stroke-width="0.8" opacity="0.8"/><line x1="41" y1="4" x2="41" y2="74" stroke="#D0C090" stroke-width="0.8" opacity="0.8"/><line x1="42.5" y1="4" x2="43" y2="74" stroke="#D0C090" stroke-width="0.8" opacity="0.8"/><path d="M36 68 Q40 74 44 68 L42 62 L38 62Z" fill="#3A2010"/><ellipse cx="36" cy="20" rx="4" ry="7" fill="#C07030" opacity="0.3"/></svg>`},
+  W_life:{word:'Watch',    icon:I2(`<circle cx="20" cy="20" r="11" fill="#F5F0E8" stroke="#C0A060" stroke-width="2"/><rect x="14" y="6" width="12" height="5" rx="2" fill="#888"/><rect x="14" y="29" width="12" height="5" rx="2" fill="#888"/><line x1="20" y1="14" x2="20" y2="20" stroke="#333" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="20" x2="25" y2="22" stroke="#E04040" stroke-width="1.5" stroke-linecap="round"/>`)},
+  X_life:{word:'Xmas tree',icon:I2(`<polygon points="20,4 30,18 10,18" fill="#3A8A3A"/><polygon points="20,12 32,28 8,28" fill="#2A7A2A"/><rect x="16" y="28" width="8" height="8" rx="1" fill="#8A5020"/><circle cx="16" cy="14" r="2" fill="#F5D020"/><circle cx="24" cy="16" r="2" fill="#E04040"/><circle cx="14" cy="24" r="2" fill="#4060E0"/><circle cx="20" cy="4" r="2.5" fill="#FFE040"/>`)},
+  Y_life:{word:'Yarn',     icon:I2(`<circle cx="20" cy="20" r="13" fill="#E050A0"/><circle cx="20" cy="20" r="9" fill="#F070C0" opacity="0.6"/><path d="M10 14 Q20 20 30 14" stroke="#C03080" stroke-width="2" fill="none"/><path d="M10 20 Q20 26 30 20" stroke="#C03080" stroke-width="2" fill="none"/><path d="M10 26 Q20 32 30 26" stroke="#C03080" stroke-width="2" fill="none"/>`)},
+  Z_life:{word:'Zipper',   icon:I2(`<line x1="20" y1="6" x2="20" y2="34" stroke="#888" stroke-width="3"/><rect x="16" y="4" width="8" height="6" rx="2" fill="#C0A030"/><line x1="12" y1="15" x2="28" y2="15" stroke="#A0A0A0" stroke-width="1.5"/><line x1="12" y1="20" x2="28" y2="20" stroke="#A0A0A0" stroke-width="1.5"/><line x1="12" y1="25" x2="28" y2="25" stroke="#A0A0A0" stroke-width="1.5"/>`)},
+};
+
+// ── Build unified card pool: each letter has 3 variants ──────────────────────
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+function getVariants(letter) {
+  const animal = ANIMAL_HEADS[letter];
+  const food   = OTHER_ICONS[letter+'_food'];
+  const life   = OTHER_ICONS[letter+'_life'];
+  const result = [];
+  if (animal) result.push({letter, word: animal.word,  icon: animal.icon,  viewbox:80});
+  if (food)   result.push({letter, word: food.word,    icon: food.icon,    viewbox:40});
+  if (life)   result.push({letter, word: life.word,    icon: life.icon,    viewbox:40});
+  if (result.length === 0) result.push({letter, word: letter, icon:(s)=>`<svg width="${s}" height="${s}" viewBox="0 0 40 40"><text x="20" y="28" text-anchor="middle" font-size="24" fill="#1a3a6b">${letter}</text></svg>`, viewbox:40});
+  return result;
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let gridSize=3, currentPlayer=0, scores=[0,0];
+let names=['玩家一','玩家二'];
+let flipped=[], matched=[], cards=[], cardData=[], locked=false;
+let audioCtx=null;
+
+// ── Audio ────────────────────────────────────────────────────────────────────
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playSwish(){
+  try{
+    const ctx=getAudio(),sr=ctx.sampleRate,dur=0.18;
+    const buf=ctx.createBuffer(1,Math.floor(sr*dur),sr);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++){const t=i/d.length;d[i]=(Math.random()*2-1)*(t<0.3?t/0.3:(1-t)/0.7)*0.22;}
+    const src=ctx.createBufferSource();src.buffer=buf;
+    const lpf=ctx.createBiquadFilter();lpf.type='lowpass';lpf.frequency.value=1200;
+    const hpf=ctx.createBiquadFilter();hpf.type='highpass';hpf.frequency.value=300;
+    const g=ctx.createGain();g.gain.setValueAtTime(1,ctx.currentTime);
+    src.connect(hpf);hpf.connect(lpf);lpf.connect(g);g.connect(ctx.destination);
+    src.start();src.stop(ctx.currentTime+dur+0.05);
+    setTimeout(()=>{try{const c2=getAudio(),b2=c2.createBuffer(1,Math.floor(sr*0.14),sr),d2=b2.getChannelData(0);for(let i=0;i<d2.length;i++){const t=i/d2.length;d2[i]=(Math.random()*2-1)*(t<0.4?t/0.4:(1-t)/0.6)*0.16;}const s2=c2.createBufferSource();s2.buffer=b2;const lp2=c2.createBiquadFilter();lp2.type='lowpass';lp2.frequency.value=1000;const hp2=c2.createBiquadFilter();hp2.type='highpass';hp2.frequency.value=350;const g2=c2.createGain();g2.gain.setValueAtTime(0.8,c2.currentTime);s2.connect(hp2);hp2.connect(lp2);lp2.connect(g2);g2.connect(c2.destination);s2.start();s2.stop(c2.currentTime+0.16);}catch(e){}},120);
+  }catch(e){}
+}
+function playMatch(){
+  try{const ctx=getAudio(),t=ctx.currentTime;[523,659,784,1047].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(f,t+i*0.13);g.gain.setValueAtTime(0.18,t+i*0.13);g.gain.exponentialRampToValueAtTime(0.001,t+i*0.13+0.22);o.start(t+i*0.13);o.stop(t+i*0.13+0.25);});}catch(e){}
+}
+
+// ── Card back SVG ────────────────────────────────────────────────────────────
+function makeBack(w,h){
+  const ts=14,pad=5,r=10;let p='';
+  for(let row=-1;row<=Math.ceil(h/ts)+1;row++)for(let col=-1;col<=Math.ceil(w/ts)+1;col++){const cx=col*ts+(row%2===0?0:ts/2),cy=row*ts*0.6;p+=`<polygon points="${cx},${cy-ts*0.38} ${cx+ts*0.5},${cy} ${cx},${cy+ts*0.38} ${cx-ts*0.5},${cy}" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.13)" stroke-width="0.5"/>`;}
+  return'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><clipPath id="cp"><rect rx="${r}" width="${w}" height="${h}"/></clipPath></defs><rect width="${w}" height="${h}" rx="${r}" fill="#1a3a6b"/><g clip-path="url(#cp)">${p}</g><rect x="${pad}" y="${pad}" width="${w-pad*2}" height="${h-pad*2}" rx="${r-2}" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/><rect x="${pad+4}" y="${pad+4}" width="${w-pad*2-8}" height="${h-pad*2-8}" rx="${r-4}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/></svg>`);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function selectLevel(el,size){document.querySelectorAll('.level-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');gridSize=size;}
+function goSetup(){showScreen('screen-setup');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+// ── Start game ───────────────────────────────────────────────────────────────
+function startGame(){
+  names[0]=document.getElementById('p1-name').value.trim()||'玩家一';
+  names[1]=document.getElementById('p2-name').value.trim()||'玩家二';
+  currentPlayer=0;scores=[0,0];flipped=[];matched=[];locked=false;
+
+  const total=gridSize*gridSize,pairs=Math.floor(total/2);
+  const chosenLetters=shuffle([...LETTERS]).slice(0,pairs);
+  const pairEntries=chosenLetters.map(letter=>{
+    const variants=getVariants(letter);
+    return variants[Math.floor(Math.random()*variants.length)];
+  });
+  const fullSet=[...pairEntries,...pairEntries];
+  if(total%2===1){
+    const used=new Set(chosenLetters);
+    const wildLetter=LETTERS.find(l=>!used.has(l))||'Z';
+    const wv=getVariants(wildLetter);
+    fullSet.push({...wv[Math.floor(Math.random()*wv.length)],letter:wildLetter+'_wild'});
+  }
+  cardData=shuffle(fullSet);
+  cards=cardData.map(d=>d.letter);
+
+  document.getElementById('sc1-name').textContent=names[0];
+  document.getElementById('sc2-name').textContent=names[1];
+  updateTurnUI();
+
+  const cardSize=gridSize===5?84:gridSize===4?100:118;
+  const letterSz=gridSize===5?22:gridSize===4?27:34;
+  const iconSz=gridSize===5?30:gridSize===4?38:46;
+  const wordSz=gridSize===5?10:gridSize===4?12:15;
+  const backURL=makeBack(cardSize,cardSize);
+
+  const grid=document.getElementById('card-grid');
+  grid.style.gridTemplateColumns=`repeat(${gridSize},${cardSize}px)`;
+  grid.style.gap='8px';grid.innerHTML='';
+
+  cardData.forEach((d,i)=>{
+    const wrapper=document.createElement('div');
+    wrapper.className='card-wrapper';
+    wrapper.style.width=cardSize+'px';wrapper.style.height=cardSize+'px';
+    const inner=document.createElement('div');inner.className='card-inner';
+    const back=document.createElement('div');
+    back.className='card-face card-back-face';
+    back.style.backgroundImage=`url("${backURL}")`;back.style.backgroundSize='cover';
+    const front=document.createElement('div');front.className='card-face card-front-face';
+    front.innerHTML=`<span class="card-letter" style="font-size:${letterSz}px;margin-bottom:2px">${d.letter.replace('_wild','')}</span><span class="card-icon" style="margin-bottom:3px">${d.icon(iconSz)}</span><span class="card-word" style="font-size:${wordSz}px">${d.word}</span>`;
+    inner.appendChild(back);inner.appendChild(front);wrapper.appendChild(inner);
+    wrapper.addEventListener('click',()=>flipCard(i));
+    grid.appendChild(wrapper);
+  });
+  showScreen('screen-game');
+}
+
+function updateTurnUI(){
+  document.getElementById('turn-name').textContent=names[currentPlayer];
+  document.getElementById('sc1').classList.toggle('active-turn',currentPlayer===0);
+  document.getElementById('sc2').classList.toggle('active-turn',currentPlayer===1);
+  document.getElementById('sc1-turn').textContent=currentPlayer===0?'本輪翻牌中':'';
+  document.getElementById('sc2-turn').textContent=currentPlayer===1?'本輪翻牌中':'';
+  document.getElementById('sc1-score').textContent=scores[0];
+  document.getElementById('sc2-score').textContent=scores[1];
+}
+
+function flipCard(index){
+  if(locked||matched.includes(index)||flipped.includes(index)||flipped.length>=2)return;
+  playSwish();
+  const ws=document.querySelectorAll('.card-wrapper');
+  ws[index].classList.add('flipped');flipped.push(index);
+  if(flipped.length===2){
+    locked=true;const[a,b]=flipped;
+    if(cards[a]===cards[b]){
+      setTimeout(()=>{
+        playMatch();
+        ws[a].classList.add('matched');ws[b].classList.add('matched');
+        matched.push(a,b);scores[currentPlayer]++;
+        flipped=[];locked=false;updateTurnUI();
+        if(matched.length>=Math.floor(cards.length/2)*2)setTimeout(showResult,500);
+      },600);
+    }else{
+      setTimeout(()=>{
+        playSwish();
+        ws[a].classList.remove('flipped');ws[b].classList.remove('flipped');
+        flipped=[];locked=false;
+        currentPlayer=currentPlayer===0?1:0;updateTurnUI();
+      },1800);
+    }
+  }
+}
+
+function showResult(){
+  const[s1,s2]=scores;let emoji,text;
+  if(s1>s2){emoji='🏆';text=names[0]+' 獲勝！';}
+  else if(s2>s1){emoji='🏆';text=names[1]+' 獲勝！';}
+  else{emoji='🤝';text='平手！勢均力敵！';}
+  document.getElementById('res-emoji').textContent=emoji;
+  document.getElementById('res-winner').textContent=text;
+  document.getElementById('res-score1').textContent=names[0]+'：'+s1+' 對';
+  document.getElementById('res-score2').textContent=names[1]+'：'+s2+' 對';
+  showScreen('screen-result');
+}
+</script>
+</body>
+</html>
